@@ -5,7 +5,15 @@ import {
   PermissionsAndroid,
   View,
   Text,
+  Platform,
+  Alert,
 } from 'react-native';
+import {
+  check,
+  PERMISSIONS,
+  request,
+  openSettings,
+} from 'react-native-permissions';
 
 import base64 from 'react-native-base64';
 
@@ -53,38 +61,87 @@ export default function App() {
 
   // Scans availbale BLT Devices and then call connectDevice
   async function scanDevices() {
-    PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-      {
-        title: 'Permission Localisation Bluetooth',
-        message: 'Requirement for Bluetooth',
-        buttonNeutral: 'Later',
-        buttonNegative: 'Cancel',
-        buttonPositive: 'OK',
-      },
-    ).then(answere => {
-      console.log('scanning');
-      // display the Activityindicator
+    try {
+      let response = false;
 
-      BLTManager.startDeviceScan(null, null, (error, scannedDevice) => {
-        if (scannedDevice && scannedDevice.name == 'BLEExample') {
-          BLTManager.stopDeviceScan();
-          connectDevice(scannedDevice);
+      const permissionType =
+        Platform.OS === 'android'
+          ? PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION
+          : PERMISSIONS.IOS.LOCATION_WHEN_IN_USE;
+
+      const result = await check(permissionType);
+      // console.warn('result = ', result);
+
+      if (result === 'unavailable') {
+        response = false;
+      }
+
+      if (result === 'granted') {
+        response = true;
+        console.log('scanning');
+      }
+
+      if (result === 'blocked') {
+        response = false;
+
+        Alert.alert(
+          'Alert',
+          'Please allow location permission',
+          [
+            {
+              text: 'Settings',
+              onPress: () => {
+                openSettings();
+              },
+            },
+          ],
+          {cancelable: false},
+        );
+      }
+
+      if (result === 'denied') {
+        const res = await request(permissionType);
+
+        if (res === 'granted') {
+          response = true;
+          console.log('scanning');
         }
 
-        else if (error) {
-          console.log(error);
-          console.warn(error); // THE ERROR OCCURS HERE, Outputs "[BleError: Cannot start scanning operation]"
-        }
 
-        
-      });
+        response = false;
+      }
 
-      // stop scanning devices after 5 seconds
-      setTimeout(() => {
+      return response;
+    } catch (err) {
+      console.warn(err);
+    }
+    // PermissionsAndroid.request(
+    //   PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+    //   {
+    //     title: 'Permission Localisation Bluetooth',
+    //     message: 'Requirement for Bluetooth',
+    //     buttonNeutral: 'Later',
+    //     buttonNegative: 'Cancel',
+    //     buttonPositive: 'OK',
+    //   },
+    // ).then(answere => {
+    //   console.log('scanning');
+    //   // display the Activityindicator
+
+    BLTManager.startDeviceScan(null, null, (error, scannedDevice) => {
+      if (scannedDevice && scannedDevice.name == 'BLEExample') {
         BLTManager.stopDeviceScan();
-      }, 5000);
+        connectDevice(scannedDevice);
+      } else if (error) {
+        console.log(error);
+        console.warn(error); // THE ERROR OCCURS HERE, Outputs "[BleError: Cannot start scanning operation]"
+      }
     });
+
+    // stop scanning devices after 5 seconds
+    setTimeout(() => {
+      BLTManager.stopDeviceScan();
+    }, 5000);
   }
 
   // handle the device disconnection (poorly)
@@ -194,14 +251,14 @@ export default function App() {
 
   return (
     <View>
-      <View style={{paddingBottom: 200}}></View>
+      <View style={{paddingBottom: 200}} />
 
       {/* Title */}
       <View style={styles.rowView}>
         <Text style={styles.titleText}>BLE Connection</Text>
       </View>
 
-      <View style={{paddingBottom: 20}}></View>
+      <View style={{paddingBottom: 20}} />
 
       {/* Connect Button */}
       <View style={styles.rowView}>
@@ -226,7 +283,7 @@ export default function App() {
         </TouchableOpacity>
       </View>
 
-      <View style={{paddingBottom: 20}}></View>
+      <View style={{paddingBottom: 20}} />
 
       {/* Monitored Value */}
 
@@ -234,7 +291,7 @@ export default function App() {
         <Text style={styles.baseText}>{message}</Text>
       </View>
 
-      <View style={{paddingBottom: 20}}></View>
+      <View style={{paddingBottom: 20}} />
 
       {/* Checkbox */}
       <View style={styles.rowView}>
